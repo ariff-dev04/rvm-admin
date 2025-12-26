@@ -46,6 +46,7 @@ export const useMachineStore = defineStore('machines', () => {
     const tempMachines: DashboardMachine[] = [];
 
     try {
+      // 1. Get List of Machines from Our DB
       const { data: dbMachines, error } = await supabase
         .from('machines')
         .select('*')
@@ -54,8 +55,11 @@ export const useMachineStore = defineStore('machines', () => {
 
       if (error || !dbMachines) throw new Error("DB Error");
 
+      // 2. Loop through each machine
       for (const dbMachine of dbMachines) {
         let apiRes = null;
+        
+        // Retry Logic for API
         for (let i = 0; i < 2; i++) {
            try {
              apiRes = await getMachineConfig(dbMachine.device_no);
@@ -75,6 +79,31 @@ export const useMachineStore = defineStore('machines', () => {
 
         if (apiRes && apiRes.code === 200 && configs.length > 0) {
           isOnline = true; 
+          
+          // ==========================================================
+          // 🔥 NEW: AUTO-SYNC LOGIC
+          // ==========================================================
+          try {
+              // Find Weight for Bin 1 (Plastic/UCO)
+              const bin1 = configs.find((c: any) => c.positionNo === 1);
+              const weight1 = bin1 ? Number(bin1.weight || 0) : 0;
+
+              // Find Weight for Bin 2 (Paper)
+              const bin2 = configs.find((c: any) => c.positionNo === 2);
+              const weight2 = bin2 ? Number(bin2.weight || 0) : 0;
+
+              // Update Supabase silently
+              await supabase.from('machines').update({
+                  current_bag_weight: weight1,
+                  current_weight_2: weight2
+              }).eq('id', dbMachine.id);
+              
+              console.log(`✅ Synced DB for ${dbMachine.device_no}: ${weight1}kg / ${weight2}kg`);
+          } catch (syncErr) {
+              console.warn("Sync failed (non-critical):", syncErr);
+          }
+          // ==========================================================
+
           const hasFault = configs.some((c: any) => c.status === 2 || c.status === 3);
           const hasActivity = configs.some((c: any) => c.status === 1);
           const isFull = configs.some((c: any) => c.isFull === true || c.isFull === "true");
@@ -98,7 +127,7 @@ export const useMachineStore = defineStore('machines', () => {
 
         let mapsUrl = "#";
         if (dbMachine.latitude && dbMachine.longitude) {
-           mapsUrl = `https://www.google.com/maps/search/?api=1&query=${dbMachine.latitude},${dbMachine.longitude}`;
+           mapsUrl = `http://googleusercontent.com/maps.google.com/?q=${dbMachine.latitude},${dbMachine.longitude}`;
         }
 
         tempMachines.push({

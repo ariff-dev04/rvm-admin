@@ -5,7 +5,6 @@ import SubmissionCorrectionModal from '../components/SubmissionCorrectionModal.v
 import SubmissionCleanupModal from '../components/SubmissionCleanupModal.vue';
 import { RefreshCw, Check, Edit3, Clock, Trash2, X } from 'lucide-vue-next';
 
-// ✅ NEW HELPER: Fixes the Timezone "Double Conversion" bug
 const formatDate = (dateString: string) => {
   if (!dateString) return '-';
   const date = new Date(dateString);
@@ -164,8 +163,21 @@ onMounted(() => fetchReviews());
                 </div>
 
                 <div>
-                  <div class="text-sm font-bold text-gray-900">{{ item.users?.nickname || 'Unknown' }}</div>
-                  <div class="text-xs text-gray-500 font-mono mb-1">{{ item.phone }}</div>                  
+                  <div class="text-sm font-bold text-gray-900">
+                      <span v-if="item.users && item.users.nickname">
+                          {{ item.users.nickname }}
+                      </span>
+                      <span v-else-if="item.users">
+                          Guest User
+                      </span>
+                      <span v-else class="text-gray-400 italic">
+                          Unknown
+                      </span>
+                  </div>
+                  
+                  <div class="text-xs text-gray-500 font-mono mb-1">
+                      {{ item.users?.phone || item.phone || 'No Phone' }}
+                  </div>                  
                 </div>
               </div>
             </td>

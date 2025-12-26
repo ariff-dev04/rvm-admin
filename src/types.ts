@@ -118,5 +118,6 @@ export interface SubmissionReview {
   users?: {
     nickname: string;
     avatar_url: string;
+    phone: string | null;
   };
 }
