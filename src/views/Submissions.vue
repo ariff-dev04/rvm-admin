@@ -3,7 +3,6 @@ import { ref, onMounted, computed } from 'vue';
 import { useSubmissionReviews } from '../composables/useSubmissionReviews';
 import SubmissionCorrectionModal from '../components/SubmissionCorrectionModal.vue'; // Import Child
 import SubmissionCleanupModal from '../components/SubmissionCleanupModal.vue';
-import { verifyUserSubmissions } from '../services/verification';
 import { RefreshCw, Check, Edit3, Clock, Trash2, X } from 'lucide-vue-next';
 
 // ✅ NEW HELPER: Fixes the Timezone "Double Conversion" bug
@@ -19,7 +18,15 @@ const formatDate = (dateString: string) => {
   });
 };
 
-const { reviews, isHarvesting, fetchReviews, harvestNewSubmissions, verifySubmission, cleanupOldData, rejectSubmission } = useSubmissionReviews();
+const { 
+  reviews, 
+  isHarvesting, 
+  fetchReviews, 
+  smartFetchAndVerify,
+  verifySubmission, 
+  cleanupOldData, 
+  rejectSubmission 
+} = useSubmissionReviews();
 
 // State
 const showModal = ref(false);
@@ -32,15 +39,6 @@ const modalStartInReject = ref(false);
 // Filter Logic
 const filteredReviews = computed(() => reviews.value.filter(r => r.status === filter.value));
 
-const isSyncing = ref(false);
-
-const handleSync = async (userId: string, phone: string) => {
-  isSyncing.value = true;
-  await verifyUserSubmissions(userId, phone);
-  // After verification, refresh the list to show new statuses
-  await fetchReviews(); 
-  isSyncing.value = false;
-};
 
 // 1. Fast Confirm
 const handleFastConfirm = async (review: any) => {
@@ -92,6 +90,7 @@ const handleCleanup = async (months: number) => {
   }
 };
 
+
 onMounted(() => fetchReviews());
 </script>
 
@@ -113,9 +112,13 @@ onMounted(() => fetchReviews());
           Cleanup
         </button>
 
-        <button @click="harvestNewSubmissions" :disabled="isHarvesting" class="flex items-center px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-all">
+        <button 
+          @click="smartFetchAndVerify" 
+          :disabled="isHarvesting" 
+          class="flex items-center px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-all"
+        >
           <RefreshCw :size="18" :class="{'animate-spin': isHarvesting, 'mr-2': true}" />
-          {{ isHarvesting ? 'Syncing...' : 'Fetch New' }}
+          {{ isHarvesting ? 'Syncing...' : 'Fetch & Verify' }}
         </button>
       </div>
     </div>
@@ -162,19 +165,7 @@ onMounted(() => fetchReviews());
 
                 <div>
                   <div class="text-sm font-bold text-gray-900">{{ item.users?.nickname || 'Unknown' }}</div>
-                  <div class="text-xs text-gray-500 font-mono mb-1">{{ item.phone }}</div>
-                  
-                  <button 
-                    v-if="item.status === 'PENDING'"
-                    @click.stop="handleSync(item.user_id, item.phone)" 
-                    :disabled="isSyncing"
-                    class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-100 hover:bg-indigo-100 flex items-center gap-1 transition-colors"
-                    title="Check if RVM already paid points for this"
-                  >
-                    <RefreshCw :size="10" :class="{ 'animate-spin': isSyncing }" />
-                    {{ isSyncing ? 'Checking...' : 'Check Live Pts' }}
-                  </button>
-                  
+                  <div class="text-xs text-gray-500 font-mono mb-1">{{ item.phone }}</div>                  
                 </div>
               </div>
             </td>

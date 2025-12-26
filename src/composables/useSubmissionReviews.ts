@@ -3,6 +3,7 @@ import { supabase } from '../services/supabase';
 import { getUserRecords, getMachineConfig } from '../services/autogcm';
 import type { SubmissionReview } from '../types';
 import { processPotentialCleaning } from './useCleaningRecords';
+import { verifyUserSubmissions } from '../services/verification';
 
 // Constants for Theoretical Calculation (KG per unit)
 const THEORETICAL_CONSTANTS: Record<string, number> = {
@@ -200,6 +201,34 @@ export function useSubmissionReviews() {
         }
     };
 
+    const smartFetchAndVerify = async () => {
+        if (isHarvesting.value) return;
+        
+        // A. Run the standard harvest
+        await harvestNewSubmissions();
+
+        // B. Identify users who need verification (PENDING status)
+        const pendingUsers = new Set<string>();
+        reviews.value.forEach(r => {
+            if (r.status === 'PENDING' && r.user_id && r.phone) {
+                pendingUsers.add(`${r.user_id}|${r.phone}`);
+            }
+        });
+
+        if (pendingUsers.size > 0) {
+            console.log(`🔄 Auto-Verifying ${pendingUsers.size} users...`);
+            for (const userKey of pendingUsers) {
+                const [uid, phone] = userKey.split('|');
+                if (uid && phone) {
+                    await verifyUserSubmissions(uid, phone);
+                }
+            }
+            // C. Final Refresh to show green badges
+            await fetchReviews();
+            console.log("✅ Verification Complete");
+        }
+    };
+
     // 3. Verify Submission (Add Points)
     const verifySubmission = async (reviewId: string, finalWeight: number, currentRate: number) => {
         try {
@@ -278,6 +307,7 @@ export function useSubmissionReviews() {
         isHarvesting, 
         fetchReviews,   
         harvestNewSubmissions,
+        smartFetchAndVerify,
         verifySubmission,
         cleanupOldData,
         rejectSubmission
