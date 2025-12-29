@@ -73,22 +73,33 @@ const router = createRouter({
 // 🛡️ THE GATEKEEPER (Navigation Guard)
 // ------------------------------------------------------------------
 router.beforeEach(async (to, _from, next) => {
-  // 1. Get current session from Supabase
   const { data: { session } } = await supabase.auth.getSession();
-
-  // 2. Check route requirements
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
   const isLoginPage = to.name === 'login';
 
-  // 3. Logic Flow
   if (requiresAuth && !session) {
-    // A. Trying to visit Protected Page WITHOUT session -> Kick to Login
     next({ name: 'login' });
   } else if (isLoginPage && session) {
-    // B. Trying to visit Login Page WITH session -> Go to Dashboard
     next({ name: 'dashboard' });
+  } else if (requiresAuth && session) {
+    // --- NEW CHECK START ---
+    // Check if user is actually an admin before letting them in
+    const { data: admin } = await supabase
+      .from('app_admins')
+      .select('role')
+      .eq('email', session.user.email!)
+      .single();
+
+    if (!admin) {
+      // User exists but is NOT an admin -> Kick to login
+      await supabase.auth.signOut();
+      next({ name: 'login' });
+    } else {
+      // User is admin -> Proceed
+      next();
+    }
+    // --- NEW CHECK END ---
   } else {
-    // C. Everything is fine -> Proceed
     next();
   }
 });

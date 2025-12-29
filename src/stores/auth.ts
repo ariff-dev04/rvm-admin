@@ -16,13 +16,20 @@ export const useAuthStore = defineStore('auth', () => {
     const { data } = await supabase.auth.getSession();
     
     if (data.session) {
-      // Validate if they are still an admin
-      const isAdmin = await checkIsAdmin(data.session.user.email!);
+      const email = data.session.user.email;
+      
+      // Safety check: specific logic if email is missing
+      if (!email) {
+        await logout();
+        return;
+      }
+
+      const isAdmin = await checkIsAdmin(email); // Now safe
       if (isAdmin) {
         session.value = data.session;
         user.value = data.session.user;
       } else {
-        await logout(); // Kick them out if they were removed from admin table
+        await logout();
       }
     }
     loading.value = false;

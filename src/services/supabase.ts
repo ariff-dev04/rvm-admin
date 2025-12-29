@@ -1,11 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Use environment variable OR a dummy fallback string to prevent crashes during UI dev
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!import.meta.env.VITE_SUPABASE_URL) {
-  console.warn('⚠️ Supabase URL is missing. Using placeholder to prevent crash.');
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('❌ Supabase URL or Key is missing. Please check your .env file.');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

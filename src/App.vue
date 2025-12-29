@@ -9,7 +9,9 @@ const auth = useAuthStore();
 
 // 🔥 RESTORE SESSION ON REFRESH
 onMounted(() => {
-  auth.initializeAuth();
+  if (!auth.user) {
+    auth.initializeAuth();
+  }
 });
 </script>
 
